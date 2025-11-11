@@ -10,9 +10,10 @@ This walkthrough will guide you from zero to running the Todo App with GitHub Co
 3. [Install Node.js](#3-install-nodejs)
 4. [Clone and Setup Todo App](#4-clone-and-setup-todo-app)
 5. [Run the Application](#5-run-the-application)
-6. [Use GitHub Copilot with PRPs](#6-use-github-copilot-with-prps)
-7. [Verify Core Features](#7-verify-core-features)
-8. [Troubleshooting](#troubleshooting)
+6. [Setup MCP Server for SQLite Database Access](#6-setup-mcp-server-for-sqlite-database-access)
+7. [Use GitHub Copilot with PRPs](#7-use-github-copilot-with-prps)
+8. [Verify Core Features](#8-verify-core-features)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -260,9 +261,197 @@ Press `Ctrl+C` in the terminal running `npm run dev`
 
 ---
 
-## 6. Use GitHub Copilot with PRPs
+## 6. Setup MCP Server for SQLite Database Access
 
-Now that everything is installed, let's use Copilot with the Product Requirement Prompts!
+Enable GitHub Copilot to directly query and inspect your `todos.db` SQLite database using the Model Context Protocol (MCP) server.
+
+### What is MCP?
+
+Model Context Protocol (MCP) allows AI assistants like GitHub Copilot to connect to external data sources and tools. By setting up an MCP server for SQLite, Copilot can:
+- Query the database directly to understand schema
+- Inspect table contents and relationships
+- Suggest code based on actual data structure
+- Debug database-related issues more effectively
+
+### Prerequisites
+- Node.js installed (already done in Step 3)
+- SQLite database file (`todos.db`) exists in project root
+
+### Step 1: Install MCP SQLite Server
+
+Install the official SQLite MCP server globally:
+
+```bash
+# Windows/macOS/Linux
+npm install -g @modelcontextprotocol/server-sqlite
+```
+
+### Step 2: Configure GitHub Copilot to Use MCP Server
+
+#### For VS Code:
+
+1. **Open VS Code Settings**:
+   - Press `Ctrl+,` (Windows/Linux) or `Cmd+,` (macOS)
+   - Or click **File → Preferences → Settings**
+
+2. **Search for "GitHub Copilot: MCP"**
+
+3. **Add MCP Server Configuration**:
+   - Click "Edit in settings.json"
+   - Add the following configuration:
+
+```json
+{
+  "github.copilot.advanced": {
+    "mcp": {
+      "servers": {
+        "sqlite-todo-db": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@modelcontextprotocol/server-sqlite",
+            "todos.db"
+          ],
+          "cwd": "${workspaceFolder}",
+          "env": {}
+        }
+      }
+    }
+  }
+}
+```
+
+#### Configuration Explained:
+- **`sqlite-todo-db`**: Name for this MCP connection (you can use any name)
+- **`command`**: Uses `npx` to run the MCP server
+- **`args`**: Specifies the SQLite server package and database file
+- **`cwd`**: Sets working directory to your workspace folder
+- **`todos.db`**: Path to your SQLite database file
+
+### Step 3: Restart VS Code
+
+After saving settings, restart VS Code to activate the MCP server:
+```bash
+# Close VS Code completely
+# Reopen from terminal
+code .
+```
+
+### Step 4: Verify MCP Connection
+
+Open GitHub Copilot Chat and test the connection:
+
+```
+@workspace Can you query the todos.db database and show me the schema?
+```
+
+Copilot should respond with the database schema including tables like:
+- `users`
+- `authenticators`
+- `todos`
+- `subtasks`
+- `tags`
+- `todo_tags`
+- `templates`
+- `holidays`
+
+### Step 5: Use Copilot with Database Context
+
+Now you can ask Copilot questions that require database knowledge:
+
+**Example 1: Schema Inspection**
+```
+@workspace Show me all columns in the todos table
+```
+
+**Example 2: Query Suggestions**
+```
+@workspace Write a SQL query to find all high-priority todos due this week
+```
+
+**Example 3: Data Analysis**
+```
+@workspace How many todos are marked as recurring in the database?
+```
+
+**Example 4: Debug with Real Data**
+```
+@workspace Check if there are any todos with invalid due_date values
+```
+
+**Example 5: Code Generation from Schema**
+```
+@workspace Generate TypeScript types for the todos table based on the actual schema
+```
+
+### Advanced MCP Configuration (Multiple Databases)
+
+If you need to connect to multiple databases:
+
+```json
+{
+  "github.copilot.advanced": {
+    "mcp": {
+      "servers": {
+        "todo-db-prod": {
+          "command": "npx",
+          "args": ["-y", "@modelcontextprotocol/server-sqlite", "todos.db"],
+          "cwd": "${workspaceFolder}"
+        },
+        "todo-db-test": {
+          "command": "npx",
+          "args": ["-y", "@modelcontextprotocol/server-sqlite", "todos.test.db"],
+          "cwd": "${workspaceFolder}"
+        }
+      }
+    }
+  }
+}
+```
+
+### Troubleshooting MCP Setup
+
+**Issue: MCP server not responding**
+```bash
+# Test the server manually
+npx @modelcontextprotocol/server-sqlite todos.db
+```
+
+**Issue: Database file not found**
+```bash
+# Verify database exists
+ls -la todos.db  # macOS/Linux
+dir todos.db     # Windows
+
+# Check database is valid
+sqlite3 todos.db ".tables"
+```
+
+**Issue: Permission errors**
+```bash
+# Ensure database has correct permissions
+chmod 644 todos.db  # macOS/Linux
+```
+
+**Issue: VS Code not loading MCP settings**
+- Ensure `github.copilot` extension is updated to latest version
+- Restart VS Code completely (not just reload window)
+- Check VS Code Output panel → GitHub Copilot → MCP logs
+
+### Benefits of Using MCP with SQLite
+
+✅ **Direct Database Access**: Copilot can query actual data, not just guess from code  
+✅ **Accurate Schema Understanding**: No need to manually describe tables  
+✅ **Better Code Suggestions**: Based on real column names and data types  
+✅ **Debugging Support**: Identify data inconsistencies quickly  
+✅ **Migration Assistance**: Generate migration scripts based on schema changes  
+✅ **Type Safety**: Auto-generate types that match actual database structure  
+
+---
+
+## 7. Use GitHub Copilot with PRPs
+
+Now that everything is installed (including MCP for database access), let's use Copilot with the Product Requirement Prompts!
 
 ### Step 1: Open Project in VS Code
 ```bash
@@ -381,7 +570,7 @@ Copilot will create code that:
 
 ---
 
-## 7. Verify Core Features
+## 8. Verify Core Features
 
 Use this checklist to verify the app is working correctly.
 
@@ -484,7 +673,7 @@ Use this checklist to verify the app is working correctly.
 
 ---
 
-## Troubleshooting
+## 9. Troubleshooting
 
 ### Copilot Not Working
 
